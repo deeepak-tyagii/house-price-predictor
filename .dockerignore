@@ -1,0 +1,5 @@
+.venv/
+.venv-clean/
+deployment/
+models/
+notebooks/

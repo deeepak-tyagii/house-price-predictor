@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import logging
+import argparse # Import the argparse library
 
 # Set up logging
 logging.basicConfig(
@@ -41,14 +42,12 @@ def clean_data(df):
                 logger.info(f"Filled missing values in {column} with mode: {mode_value}")
     
     # Handle outliers in price (target variable)
-    # Using IQR method to identify outliers
     Q1 = df_cleaned['price'].quantile(0.25)
     Q3 = df_cleaned['price'].quantile(0.75)
     IQR = Q3 - Q1
     lower_bound = Q1 - 1.5 * IQR
     upper_bound = Q3 + 1.5 * IQR
     
-    # Filter out extreme outliers
     outliers = df_cleaned[(df_cleaned['price'] < lower_bound) | 
                           (df_cleaned['price'] > upper_bound)]
     
@@ -62,9 +61,9 @@ def clean_data(df):
 
 def process_data(input_file, output_file):
     """Full data processing pipeline."""
-    # Create output directory if it doesn't exist
-    output_path = Path(output_file).parent
-    output_path.mkdir(parents=True, exist_ok=True)
+    # NOTE: Removed directory creation as Kubeflow handles output paths.
+    # output_path = Path(output_file).parent
+    # output_path.mkdir(parents=True, exist_ok=True)
     
     # Load data
     df = load_data(input_file)
@@ -80,8 +79,13 @@ def process_data(input_file, output_file):
     return df_cleaned
 
 if __name__ == "__main__":
-    # Example usage
-    process_data(
-        input_file="data/raw/house_data.csv", 
-        output_file="data/processed/cleaned_house_data.csv"
-    )
+    # --- MODIFIED SECTION ---
+    # Set up argument parser to accept file paths from the command line
+    parser = argparse.ArgumentParser(description="Process raw house data.")
+    parser.add_argument("--input", type=str, required=True, help="Path to the raw input data CSV file.")
+    parser.add_argument("--output", type=str, required=True, help="Path where the cleaned output data CSV will be saved.")
+    
+    args = parser.parse_args()
+
+    # Call the main function with the provided arguments
+    process_data(input_file=args.input, output_file=args.output)

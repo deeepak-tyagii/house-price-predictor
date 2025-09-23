@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamlit-frontend
+  template:
+    metadata:
+      labels:
+        app: streamlit-frontend
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: streamlit
+        image: deepaktyagi048/streamlit:latest
+        env:
+          - name: API_URL
+            value: "http://house-price-api:8000"
+        ports:
+        - containerPort: 8501
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "256Mi"
+            ephemeral-storage: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-frontend-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: streamlit-frontend
+  ports:
+    - protocol: TCP
+      port: 8501
+      targetPort: 8501

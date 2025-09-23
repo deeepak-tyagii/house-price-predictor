@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: house-price-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: house-price-api
+  template:
+    metadata:
+      labels:
+        app: house-price-api
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: api
+        image: deepaktyagi048/fastapi
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+            ephemeral-storage: "2Gi"
+        env:
+        - name: S3_BUCKET_NAME
+          value: "labs-content"
+
+        # --- This section injects the AWS credentials from aws-creds secret ---
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-s3-credentials      
+              key: AWS_ACCESS_KEY_ID       
+
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-s3-credentials      
+              key: AWS_SECRET_ACCESS_KEY   
+        # -----------------------------------------------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: house-price-api
+spec:
+  selector:
+    app: house-price-api 
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
