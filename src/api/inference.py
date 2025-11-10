@@ -1,41 +1,78 @@
 import os
 import io
-import boto3
 import joblib
 import pandas as pd
 from datetime import datetime
 from schemas import HousePredictionRequest, PredictionResponse
 
-# --- Load Model and Preprocessor from S3 at Startup ---
+# --- Load Model and Preprocessor from S3 or Local Storage ---
 
-# 1. Get S3 bucket and file locations from environment variables
-S3_BUCKET = os.getenv("S3_BUCKET_NAME", "labs-content")
+# Get S3 bucket and file locations from environment variables
+S3_BUCKET = os.getenv("S3_BUCKET_NAME")
 MODEL_KEY = os.getenv("MODEL_KEY", "production/model.pkl")
 PREPROCESSOR_KEY = os.getenv("PREPROCESSOR_KEY", "production/preprocessor.pkl")
 
-# Check if the required environment variable is set
-if not S3_BUCKET:
-    raise RuntimeError("S3_BUCKET_NAME environment variable is not set.")
+# Local fallback paths
+LOCAL_MODEL_PATH = os.getenv("LOCAL_MODEL_PATH", "models/trained/model.pkl")
+LOCAL_PREPROCESSOR_PATH = os.getenv("LOCAL_PREPROCESSOR_PATH", "models/trained/preprocessor.pkl")
 
-try:
-    print(f"Loading artifacts from s3://{S3_BUCKET}...")
-    # 2. Initialize S3 client and download files into memory
-    s3_client = boto3.client("s3")
+model = None
+preprocessor = None
 
-    # Download and load the preprocessor
-    preprocessor_obj = s3_client.get_object(Bucket=S3_BUCKET, Key=PREPROCESSOR_KEY)
-    preprocessor_bytes = io.BytesIO(preprocessor_obj['Body'].read())
-    preprocessor = joblib.load(preprocessor_bytes)
+# Try loading from S3 first if credentials are available
+if S3_BUCKET:
+    try:
+        import boto3
+        print(f"Attempting to load artifacts from s3://{S3_BUCKET}...")
+        
+        # Initialize S3 client and download files into memory
+        s3_client = boto3.client("s3")
 
-    # Download and load the model
-    model_obj = s3_client.get_object(Bucket=S3_BUCKET, Key=MODEL_KEY)
-    model_bytes = io.BytesIO(model_obj['Body'].read())
-    model = joblib.load(model_bytes)
+        # Download and load the preprocessor
+        preprocessor_obj = s3_client.get_object(Bucket=S3_BUCKET, Key=PREPROCESSOR_KEY)
+        preprocessor_bytes = io.BytesIO(preprocessor_obj['Body'].read())
+        preprocessor = joblib.load(preprocessor_bytes)
 
-    print(f"Successfully loaded model and preprocessor.")
+        # Download and load the model
+        model_obj = s3_client.get_object(Bucket=S3_BUCKET, Key=MODEL_KEY)
+        model_bytes = io.BytesIO(model_obj['Body'].read())
+        model = joblib.load(model_bytes)
 
-except Exception as e:
-    raise RuntimeError(f"Error loading model or preprocessor from S3: {str(e)}")
+        print(f"Successfully loaded model and preprocessor from S3.")
+
+    except Exception as e:
+        print(f"Failed to load from S3: {str(e)}")
+        print("Falling back to local model files...")
+        model = None
+        preprocessor = None
+
+# Fallback to local files if S3 loading failed or credentials not available
+if model is None or preprocessor is None:
+    try:
+        print(f"Loading artifacts from local storage...")
+        print(f"Model path: {LOCAL_MODEL_PATH}")
+        print(f"Preprocessor path: {LOCAL_PREPROCESSOR_PATH}")
+        
+        # Load preprocessor from local file
+        if os.path.exists(LOCAL_PREPROCESSOR_PATH):
+            preprocessor = joblib.load(LOCAL_PREPROCESSOR_PATH)
+            print(f"Successfully loaded preprocessor from {LOCAL_PREPROCESSOR_PATH}")
+        else:
+            raise FileNotFoundError(f"Preprocessor not found at {LOCAL_PREPROCESSOR_PATH}")
+
+        # Load model from local file
+        if os.path.exists(LOCAL_MODEL_PATH):
+            model = joblib.load(LOCAL_MODEL_PATH)
+            print(f"Successfully loaded model from {LOCAL_MODEL_PATH}")
+        else:
+            raise FileNotFoundError(f"Model not found at {LOCAL_MODEL_PATH}")
+
+    except Exception as e:
+        raise RuntimeError(f"Error loading model or preprocessor from local storage: {str(e)}")
+
+# Final check to ensure both model and preprocessor are loaded
+if model is None or preprocessor is None:
+    raise RuntimeError("Failed to load model and preprocessor from both S3 and local storage.")
 
 
 def predict_price(request: HousePredictionRequest) -> PredictionResponse:
