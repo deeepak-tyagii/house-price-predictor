@@ -114,7 +114,7 @@ if __name__ == '__main__':
 
     kfp.compiler.Compiler().compile(
         pipeline_func=house_price_pipeline,
-        package_path='house_price_pipeline_direct_creds.yaml',
+        package_path='house_price_pipeline.yaml',
         # Pass the credentials from your local machine into the pipeline
         pipeline_parameters={
             'raw_data_path': 'data/raw/house_data.csv',

@@ -133,6 +133,131 @@ python src/models/train_model.py   --config configs/model_config.yaml   --data d
 
 ---
 
+## 🔄 Kubeflow Pipelines Setup
+
+### Configure AWS S3 Credentials
+
+Create a Kubernetes secret for AWS S3 access:
+
+```bash
+kubectl create secret generic aws-s3-credentials -n kubeflow \
+  --from-literal=AWS_ACCESS_KEY_ID='access key' \
+  --from-literal=AWS_SECRET_ACCESS_KEY='secret access key'
+```
+
+Verify the secret was created:
+
+```bash
+kubectl get secrets -n kubeflow
+```
+
+---
+
+### Configure kfp-launcher ConfigMap
+
+Edit the kfp-launcher configmap to configure S3 as the pipeline root:
+
+```bash
+kubectl edit cm -n kubeflow kfp-launcher
+```
+
+Update the configmap with the following configuration:
+
+```yaml
+data:
+  defaultPipelineRoot: s3://labs-content  # Replace 'labs-content' with your S3 bucket name
+  providers: |-
+    s3:
+      default:
+        endpoint: s3.amazonaws.com
+        disableSSL: false
+        region: us-east-1
+        forcePathStyle: true
+        credentials:
+          fromEnv: false
+          secretRef:
+            secretName: aws-s3-credentials
+            accessKeyKey: AWS_ACCESS_KEY_ID
+            secretKeyKey: AWS_SECRET_ACCESS_KEY
+```
+
+> **Note:** Replace `labs-content` with your actual S3 bucket name in the `defaultPipelineRoot` field.
+
+---
+
+### Access Kubeflow Pipeline Dashboard
+
+Port-forward the Kubeflow pipeline UI service:
+
+```bash
+kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8080:80
+```
+
+Access the dashboard at [http://localhost:8080](http://localhost:8080)
+
+---
+
+### Create and Deploy Pipeline
+
+1. **Generate the pipeline YAML file:**
+
+   ```bash
+   python pipeline.py
+   ```
+
+2. **Upload Pipeline:**
+   - Go to the Kubeflow pipeline dashboard
+   - Click "Upload Pipeline"
+   - Select the generated YAML file
+
+3. **Create a Run:**
+   - Navigate to your uploaded pipeline
+   - Click "Create Run"
+   - Configure run parameters if needed
+   - Submit the run
+
+---
+
+### Monitor Pipeline Execution
+
+- **View Artifacts in S3:** Check your AWS S3 bucket (replace `labs-content` with your bucket name) for pipeline artifacts
+- **View Logs:** Click on individual pipeline steps to view execution logs
+- **View Containers:** Inspect the containers created for each pipeline step
+- **Kubernetes Resources:** Review the generated Kubernetes YAML files for pipeline components
+
+---
+
+### Deploy Kubernetes Resources
+
+Deploy the FastAPI and Streamlit applications to your Kubernetes cluster:
+
+```bash
+# Deploy the API service
+kubectl apply -f kubernetes/api-deployment.yaml
+
+# Deploy the Streamlit UI
+kubectl apply -f kubernetes/ui-deployment.yaml
+
+# Verify deployments
+kubectl get deployments
+kubectl get pods
+kubectl get services
+```
+
+---
+
+### Access Streamlit Frontend
+
+Once the pipeline completes, port-forward the Streamlit service:
+
+```bash
+kubectl port-forward svc/streamlit-frontend-svc 8501:8501
+```
+
+Access the Streamlit app at [http://localhost:8501](http://localhost:8501)
+
+---
+
 
 ## Building FastAPI and Streamlit 
 

@@ -12,7 +12,7 @@ model:
     - '10'
     - '13'
     - '14'
-  mae: 12262.362108194575
+  mae: 12698.291724456114
   name: house_price_model
   parameters:
     alpha: 0.9
@@ -21,7 +21,7 @@ model:
     init: null
     learning_rate: 0.1
     loss: squared_error
-    max_depth: 3
+    max_depth: 10
     max_features: null
     max_leaf_nodes: null
     min_impurity_decrease: 0.0
@@ -36,5 +36,5 @@ model:
     validation_fraction: 0.1
     verbose: 0
     warm_start: false
-  r2_score: 0.992497914803415
+  r2_score: 0.9949927364008555
   target_variable: price
